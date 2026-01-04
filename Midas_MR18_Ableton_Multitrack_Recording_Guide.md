@@ -36,19 +36,18 @@ This guide details how to use the Midas MR18 digital mixer as an 18x18 USB audio
 
 ### Hardware
 - **Midas MR18** digital mixer
-- **Computer** (Mac/PC) with available USB 2.0 or 3.0 port
+- **Mac** with available USB 2.0 or 3.0 port
 - **USB Type B cable** (USB-A to USB-B or USB-C to USB-B depending on your computer)
 - Sufficient **storage space** for multitrack recordings (approximately 1GB per 10 minutes of 18-track recording at 24-bit/48kHz)
 - Minimum **4GB RAM** (8GB+ recommended for 18-track recording)
 
 ### Software
 - **Ableton Live 12.3** (Suite, Standard, or Intro)
-- **Midas MR18 USB drivers** (macOS/Windows compatible)
+- **Midas MR18 USB drivers** (macOS compatible)
 - **M-Air Control App** or web browser for MR18 configuration (optional but recommended)
 
 ### Operating System
 - **macOS**: 10.13.6 or later (macOS 12+ recommended)
-- **Windows**: 10 or later (64-bit)
 
 ---
 
@@ -59,14 +58,38 @@ Ableton Live 12.3, released in November 2025, includes several features particul
 ### Key Features for Recording
 
 **Stem Separation**
-- Isolate vocals, drums, bass, and other instruments post-recording
+
+*What are Stems?*
+Stems are individual audio files or tracks that represent grouped elements of a mix. For example, a "drums stem" contains all drum tracks (kick, snare, hi-hats, etc.) mixed together into a single stereo file, while a "vocals stem" contains all vocal tracks. Stems are commonly used for:
+- Archiving and backup (easier to manage than 18+ individual tracks)
+- Mixing in other DAWs or studios
+- Creating alternate mixes or remixes
+- Sharing with collaborators who don't have the full multitrack session
+- Live performance (playing back stems instead of full multitrack)
+
+*Stem Separation Feature:*
+- Uses AI to automatically isolate vocals, drums, bass, and other instruments from existing recordings
+- Works on stereo or mono recordings, even if they weren't originally multitrack
 - Perfect for remixing and sampling from multitrack recordings
 - Works directly in Session or Arrangement view
+- Creates new tracks with the separated elements
 
 **Bounce to New Track**
-- Quickly consolidate and bounce clips or time selections
-- Includes all processing and effects
+
+*What is Bouncing?*
+Bouncing (also called "rendering" or "printing") is the process of converting audio tracks with all their effects, processing, and automation into a new audio file. The bounced track contains the final processed sound, not the original audio plus effects. This is useful for:
+- Freeing up CPU by rendering processor-heavy tracks
+- Committing to effects and processing decisions
+- Creating consolidated versions of multiple takes or layers
+- Exporting stems for mixing or sharing
+- Archiving final versions of tracks
+
+*Bounce to New Track Feature:*
+- Quickly consolidate and bounce clips or time selections to new audio tracks
+- Includes all processing and effects in the bounced audio
 - Optimizes CPU usage during complex sessions
+- Creates a new track with the bounced audio, leaving the original track intact
+- Useful for creating stems or committing to processing decisions
 
 **Auto Filter Overhaul**
 - Real-time visualization
@@ -126,13 +149,6 @@ The MR18 sends audio to your computer via 18 USB channels:
 
 **Note**: macOS 10.14+ may recognize the MR18 as a class-compliant device without additional drivers. However, installing the official driver ensures optimal performance and stability.
 
-#### Windows
-1. Download the latest ASIO driver from the Midas website
-2. Run the `.exe` installer as Administrator
-3. Follow the installation wizard
-4. Restart your computer
-5. Verify installation in **Device Manager > Sound, video and game controllers**
-
 ### Step 2: Physical Connection
 
 1. **Power on** the MR18
@@ -140,7 +156,6 @@ The MR18 sends audio to your computer via 18 USB channels:
 3. Wait for your computer to recognize the device (typically 10-30 seconds)
 4. Verify connection by checking:
    - **macOS**: Audio MIDI Setup app (Applications > Utilities)
-   - **Windows**: Device Manager or Sound Control Panel
 
 ### Step 3: MR18 Network Setup (Optional but Recommended)
 
@@ -154,7 +169,7 @@ The MR18 can be controlled via WiFi or Ethernet for remote configuration:
 3. The MR18 control interface will load
 
 #### M-Air App
-- Download the **M-Air** app (iOS/Android/macOS/Windows)
+- Download the **M-Air** app (iOS/Android/macOS)
 - Connect to the MR18 WiFi network
 - Launch the app; it should automatically detect the mixer
 
@@ -165,14 +180,10 @@ The MR18 can be controlled via WiFi or Ethernet for remote configuration:
 ### Step 1: Audio Preferences Setup
 
 1. **Open Ableton Live 12.3**
-2. Navigate to **Preferences** (Mac: `Ableton Live > Preferences`, Windows: `Options > Preferences`)
+2. Navigate to **Preferences** (`Ableton Live > Preferences`)
 3. Select the **Audio** tab
 
 ### Step 2: Select Audio Interface
-
-**Driver Type** (Windows only):
-- Select **ASIO** as the driver type
-- Click **Driver** and choose **Midas MR18 ASIO Driver**
 
 **Audio Input Device**:
 - Select **MR18** from the dropdown menu
@@ -235,6 +246,126 @@ The MR18's USB routing determines which signals are sent to Ableton Live. This i
 1. Launch M-Air app
 2. Connect to MR18
 
+### Linux Control Computer Setup (Dual Network Configuration)
+
+For setups where a Linux computer is used for MR18 mixer control while maintaining internet connectivity:
+
+**Network Configuration Overview**:
+- **WiFi**: Connected to your regular network for internet access
+- **Ethernet**: Direct connection to MR18 for mixer control (typically `192.168.1.1`)
+- **Mac**: Connected via USB to MR18 for Ableton Live recording
+
+**Step 1: Physical Connections**
+1. Connect Ethernet cable from Linux computer to MR18's Ethernet port
+2. Ensure WiFi is connected to your regular network (for internet)
+3. Mac remains connected to MR18 via USB for recording
+
+**Step 2: Configure Ethernet Interface on Linux**
+
+The MR18 typically uses the `192.168.1.1` IP address. Configure your Linux Ethernet interface with a static IP in the same subnet:
+
+**Using NetworkManager (most modern Linux distributions)**:
+1. Open NetworkManager settings (GUI or `nmcli`)
+2. Select your Ethernet connection
+3. Set IPv4 configuration to **Manual**
+4. Configure:
+   - **IP Address**: `192.168.1.100` (or any address in `192.168.1.x` range, avoiding `.1`)
+   - **Netmask**: `255.255.255.0` (or `/24`)
+   - **Gateway**: Leave empty (or `192.168.1.1` if needed)
+   - **DNS**: Leave empty or use your WiFi network's DNS
+5. Save and activate the connection
+
+**Using `nmcli` (command line)**:
+```bash
+# Set Ethernet interface to static IP
+sudo nmcli connection modify "Wired connection 1" \
+  ipv4.addresses 192.168.1.100/24 \
+  ipv4.method manual \
+  ipv4.gateway "" \
+  ipv4.dns ""
+
+# Activate the connection
+sudo nmcli connection up "Wired connection 1"
+```
+
+**Using `/etc/network/interfaces` (Debian/Ubuntu traditional method)**:
+```bash
+# Edit /etc/network/interfaces
+auto eth0
+iface eth0 inet static
+    address 192.168.1.100
+    netmask 255.255.255.0
+    # No gateway needed for direct connection
+```
+
+**Step 3: Verify Network Configuration**
+
+1. **Check Ethernet interface**:
+   ```bash
+   ip addr show
+   # or
+   ifconfig
+   ```
+   Should show your Ethernet interface with IP `192.168.1.100` (or your chosen IP)
+
+2. **Test connectivity to MR18**:
+   ```bash
+   ping 192.168.1.1
+   ```
+   Should receive responses from the MR18
+
+3. **Verify internet still works**:
+   ```bash
+   ping 8.8.8.8
+   # or
+   curl https://www.google.com
+   ```
+   Internet should still be accessible via WiFi
+
+**Step 4: Access MR18 Web Interface**
+
+1. Open web browser on Linux computer
+2. Navigate to `http://192.168.1.1`
+3. MR18 control interface should load
+4. You can now control the mixer from Linux while maintaining internet access
+
+**Step 5: Routing Configuration (if needed)**
+
+If you encounter routing issues where the system tries to use Ethernet for internet:
+
+**Check routing table**:
+```bash
+ip route show
+# or
+route -n
+```
+
+**Expected behavior**:
+- Default route should point to WiFi gateway (for internet)
+- Direct route to `192.168.1.0/24` should use Ethernet interface
+
+**If routing needs adjustment**:
+```bash
+# Ensure default route uses WiFi (wlan0 or similar)
+sudo ip route add default via <your-wifi-gateway-ip> dev wlan0
+
+# Ensure MR18 subnet uses Ethernet
+sudo ip route add 192.168.1.0/24 dev eth0
+```
+
+**Troubleshooting**:
+
+- **Can't reach MR18**: Verify Ethernet cable is connected and MR18 is powered on. Check IP configuration matches MR18's subnet.
+- **Lost internet connection**: Ensure WiFi is still connected and default route points to WiFi gateway.
+- **MR18 not at 192.168.1.1**: Check MR18's network settings via WiFi connection first, or consult MR18 manual for default IP.
+- **Both networks work but routing is slow**: Use `ip route` to verify routes are correct. Consider adding explicit routes if needed.
+
+**Benefits of This Setup**:
+- **Separation of concerns**: Mac handles recording, Linux handles mixer control
+- **Internet access maintained**: Can access documentation, updates, cloud services from Linux
+- **Stable direct connection**: Ethernet provides reliable, low-latency connection to MR18
+- **Flexible workflow**: Control mixer remotely while Mac focuses on recording
+
 ### Configure USB Interface Mode
 
 1. In the MR18 interface, tap/click the **Setup** or **Config** button (gear icon)
@@ -292,7 +423,7 @@ For each input channel (1-18), you can choose what signal is sent to USB:
 
 1. In Ableton Live, create a new session or open an existing project
 2. Create audio tracks for each input you want to record:
-   - **Keyboard shortcut**: `Cmd+T` (Mac) or `Ctrl+T` (Windows)
+   - **Keyboard shortcut**: `Cmd+T`
    - Or: Right-click in the track area > **Insert Audio Track**
 3. For full 18-channel recording, create 18 audio tracks
 
@@ -336,7 +467,24 @@ For each track, set the **Monitor** mode (small speaker icon in track controls):
 1. Click the **Record Arm** button on each track you want to record (circular button)
 2. Track arm buttons will turn red when armed
 3. You should see input levels on the track meters
-4. **Tip**: Hold `Cmd` (Mac) or `Ctrl` (Windows) to arm multiple tracks simultaneously
+4. **Tip**: Hold `Cmd` to arm multiple tracks simultaneously
+
+**Troubleshooting: Only One Track Arms at a Time**
+
+If you find that arming one track automatically disarms another (only one track can be armed at a time), this is **not related to your Ableton license**. All versions of Ableton Live (Intro, Standard, Suite) support multiple armed tracks. The issue is caused by the **"Exclusive Arm"** preference being enabled.
+
+**Solution**:
+1. Go to **Preferences** (`Ableton Live > Preferences`)
+2. Select the **Record/Warp/Launch** tab
+3. Look for **"Exclusive Arm"** option
+4. **Uncheck** or **disable** "Exclusive Arm"
+5. Close Preferences
+
+After disabling Exclusive Arm, you'll be able to arm multiple tracks simultaneously. This setting is useful for live performance (prevents accidentally recording on multiple tracks), but for multitrack recording, you'll want it disabled.
+
+**Alternative Method** (if Exclusive Arm is disabled but issue persists):
+- Try holding `Cmd` while clicking multiple arm buttons
+- Or use `Cmd+Shift+A` to arm all tracks at once (if configured)
 
 ### Step 6: Set Input Levels on MR18
 
@@ -362,7 +510,7 @@ Proper gain staging is critical:
 1. Press `Spacebar` to stop playback
 2. Recording stops automatically
 3. New audio clips appear on all recorded tracks
-4. **Save your project**: `Cmd+S` (Mac) or `Ctrl+S` (Windows)
+4. **Save your project**: `Cmd+S`
 
 ### Step 9: Review and Edit
 
@@ -398,28 +546,6 @@ Proper monitoring is essential for comfortable tracking and performance.
 3. In **Ableton Live**, set all tracks to **Monitor: Off**
 4. This routes audio through the MR18's internal mixer before going to outputs
 
-### Monitoring Through Ableton Live
-
-**When to Use**:
-- When you need to hear software instruments alongside live inputs
-- When using real-time effects during tracking
-- For overdubbing with existing tracks
-
-**Setup**:
-1. Set tracks to **Monitor: Auto** or **In**
-2. Enable **Reduced Latency When Monitoring** in Ableton's preferences
-3. Lower buffer size to 128 or 64 samples if needed
-4. **Trade-off**: Increased CPU usage; watch CPU meter
-
-### Hybrid Monitoring Approach
-
-For the best of both worlds:
-1. Monitor **live inputs** through the MR18 (zero latency)
-2. Monitor **playback** and **virtual instruments** through Ableton
-3. **Route Ableton's output** back to the MR18:
-   - Ableton's Main Out → MR18 USB Returns
-   - Mix playback with live inputs in the MR18
-   - Performers hear both with minimal latency
 
 ---
 
@@ -538,7 +664,7 @@ For the best of both worlds:
 2. **Save project with descriptive name**: Include date and session type
 3. **Consolidate clips**: Use "Consolidate" to create single files per track
 4. **Back up immediately**: Copy project folder to external drive
-5. **Export stems**: Bounce individual tracks for archival or mixing elsewhere
+5. **Export stems**: Bounce individual tracks or grouped tracks (e.g., all drums, all vocals) as audio files for archival or mixing elsewhere. Stems are processed audio files that can be opened in any DAW.
 6. **Document settings**: Note any special MR18 routing or processing used
 
 ### Gain Staging
