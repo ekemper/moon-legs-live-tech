@@ -1,0 +1,16 @@
+
+
+an interface that will allow a random flashcard experience with chords, scales and arpeggios. 
+
+a keyboard on the screen that shows the correct notes as green when pressed. incorrect notes show up as red
+
+a supercollidor integration to play a nice rhodes sound. as realistic as possible. accepts midi input for user interaction 
+
+a user history that allows for the progress of the learning to be documented and visualized 
+
+Data models for mvp:
+
+    * chords
+    * scales
+    * arpeggios
+    * 
