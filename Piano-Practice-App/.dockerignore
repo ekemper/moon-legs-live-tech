@@ -1,0 +1,23 @@
+# Git and IDE
+.git
+.gitignore
+.cursor
+*.md
+!README.md
+
+# Frontend (reduce context when building backend)
+frontend/node_modules
+frontend/dist
+
+# Backend
+backend/__pycache__
+backend/.venv
+backend/venv
+*.py[cod]
+.pytest_cache
+.mypy_cache
+
+# Misc
+*.log
+.env
+.env.*

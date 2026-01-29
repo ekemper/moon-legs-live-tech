@@ -1,0 +1,68 @@
+{
+  "chords": [
+    {
+      "id": "major",
+      "name": "Major",
+      "intervals": [0, 4, 7],
+      "historicalBlurb": "The major triad is the most common chord in Western music, conveying a bright, stable quality. It has been the harmonic backbone of tonal music since the Baroque."
+    },
+    {
+      "id": "minor",
+      "name": "Minor",
+      "intervals": [0, 3, 7],
+      "historicalBlurb": "The minor triad sounds darker than major and has been associated with melancholy or introspection in classical and popular music."
+    },
+    {
+      "id": "diminished",
+      "name": "Diminished",
+      "intervals": [0, 3, 6],
+      "historicalBlurb": "The diminished triad creates tension and is often used as a passing chord or for dramatic effect in jazz and classical music."
+    },
+    {
+      "id": "augmented",
+      "name": "Augmented",
+      "intervals": [0, 4, 8],
+      "historicalBlurb": "The augmented triad has a distinctive, unresolved quality and appears in late Romantic and impressionist music."
+    }
+  ],
+  "scales": [
+    {
+      "id": "major",
+      "name": "Major",
+      "intervals": [0, 2, 4, 5, 7, 9, 11],
+      "historicalBlurb": "The major scale is the foundation of Western tonality. Its pattern of whole and half steps (W-W-H-W-W-W-H) has defined melody and harmony for centuries."
+    },
+    {
+      "id": "natural_minor",
+      "name": "Natural Minor",
+      "intervals": [0, 2, 3, 5, 7, 8, 10],
+      "historicalBlurb": "The natural minor (Aeolian) scale is the relative minor of the major scale and is widely used in folk, rock, and classical music."
+    },
+    {
+      "id": "harmonic_minor",
+      "name": "Harmonic Minor",
+      "intervals": [0, 2, 3, 5, 7, 8, 11],
+      "historicalBlurb": "The harmonic minor scale raises the seventh degree to create a stronger pull to the tonic, common in Baroque and classical harmony."
+    },
+    {
+      "id": "pentatonic_major",
+      "name": "Pentatonic Major",
+      "intervals": [0, 2, 4, 7, 9],
+      "historicalBlurb": "The major pentatonic scale omits the fourth and seventh degrees. It appears in folk music worldwide and in blues and rock."
+    }
+  ],
+  "arpeggios": [
+    {
+      "id": "major",
+      "name": "Major",
+      "intervals": [0, 4, 7, 12],
+      "historicalBlurb": "The major arpeggio outlines the major triad across octaves and is fundamental to piano technique and improvisation."
+    },
+    {
+      "id": "minor",
+      "name": "Minor",
+      "intervals": [0, 3, 7, 12],
+      "historicalBlurb": "The minor arpeggio is used in classical études and in jazz and pop for melodic and harmonic material."
+    }
+  ]
+}

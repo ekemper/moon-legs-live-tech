@@ -1,16 +1,36 @@
 
+here is a first draft for a plan for a piano practicing app. we will need:
 
-an interface that will allow a random flashcard experience with chords, scales and arpeggios. 
+an interface ( react app ) that will allow a random flashcard experience with chords, scales and arpeggios. 
 
 a keyboard on the screen that shows the correct notes as green when pressed. incorrect notes show up as red
 
-a supercollidor integration to play a nice rhodes sound. as realistic as possible. accepts midi input for user interaction 
+a supercollider integration to play a nice rhodes piano sound. as realistic as possible. accepts midi input from a keyboard for user interaction 
 
-a user history that allows for the progress of the learning to be documented and visualized 
 
 Data models for mvp:
 
     * chords
     * scales
     * arpeggios
-    * 
+    * lesson
+
+here are the details for the 'lesson' data model:
+    * lesson type: is this a chord, scale, or arp?
+    * lesson object: the chord, scale, arpeggio that is to be attempted. 
+    * what keys were pressed in practicing the lesson
+    * date - time
+
+
+
+User experiences:
+
+* I plug in a midi keyboard and the hardware automatically connects to supercollider model and the number of keys is displayed on the main page in the react app. any errors that occur need to be surfaced to the user in the react app
+
+* when the main page of the react app loads, a random lesson loads. 
+
+* with hardware connected, there is a keyboard displayed on the react app with the correct number of keys for the midi key board that I have connected
+
+* when I press any key(s) on the keyboard, I hear a classic rhodes piano sound from the headphones 
+
+* notes that are played on the keyboard show up on the react app representation of the keyboard. notes that are in the scale, chord or arppeggio show up green, notes that are incorrect show up red. 
