@@ -1,11 +1,10 @@
 import { useApp } from '../contexts/AppContext'
 
 export function MIDIStatus() {
-  const { selectedDeviceId, selectedDeviceConfig, connected } = useApp()
+  const { selectedDeviceId, selectedDeviceConfig, connected, error } = useApp()
   return (
     <div style={{ padding: '8px 12px', fontSize: '14px', color: '#aaa' }}>
-      {!connected && <span>Connecting…</span>}
-      {connected && !selectedDeviceId && <span>Select a MIDI device below.</span>}
+      {!connected && <span>{error || 'Connecting…'}</span>}
       {connected && selectedDeviceId && (
         <span>
           {selectedDeviceId}

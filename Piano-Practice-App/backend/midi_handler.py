@@ -14,8 +14,11 @@ from backend.lesson_loader import load_device_configs, save_device_configs
 
 
 def get_input_names() -> list[str]:
-    """Return list of available MIDI input port names."""
-    return mido.get_input_names()
+    """Return list of available MIDI input port names. Returns [] if unavailable (e.g. in Docker)."""
+    try:
+        return mido.get_input_names()
+    except (OSError, RuntimeError, Exception):
+        return []
 
 
 def open_input(port_name: str):
@@ -56,7 +59,10 @@ class MIDIHandler:
         self._thread: threading.Thread | None = None
         self._queue: asyncio.Queue[Message] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._device_configs = load_device_configs()
+        try:
+            self._device_configs = load_device_configs()
+        except Exception:
+            self._device_configs = {}
         self._init_state: dict[str, Any] | None = None  # { "step": "low"|"high", "lowNote"?: int }
 
     def get_device_config(self, device_id: str) -> dict[str, Any] | None:

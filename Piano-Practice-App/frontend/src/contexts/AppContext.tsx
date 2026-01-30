@@ -1,10 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 export interface Lesson {
   type: string
   key: string
+  octave?: number
   name: string
   intervals: number[]
+  intervalLabels?: string[]  // scale degrees: 1, ♭3, 5, etc. (from backend)
   noteNames: string[]
   midiNotes: number[]
   historicalBlurb: string
@@ -14,6 +16,17 @@ export interface DeviceConfig {
   lowNote: number
   highNote: number
   keyCount: number
+}
+
+const SHOW_ROOT_INDICATOR_KEY = 'piano-practice-show-root-indicator'
+
+function getInitialShowRootIndicator(): boolean {
+  try {
+    const v = localStorage.getItem(SHOW_ROOT_INDICATOR_KEY)
+    return v === 'true'
+  } catch {
+    return false
+  }
 }
 
 type AppState = {
@@ -27,6 +40,7 @@ type AppState = {
   activeNotes: Map<number, boolean>
   noteCorrect: Map<number, boolean>
   volume: number
+  showRootIndicator: boolean
   initWorkflow: { deviceId: string; step: 'low' | 'high' } | null
 }
 
@@ -41,6 +55,7 @@ const defaultState: AppState = {
   activeNotes: new Map(),
   noteCorrect: new Map(),
   volume: 0.8,
+  showRootIndicator: getInitialShowRootIndicator(),
   initWorkflow: null,
 }
 
@@ -50,6 +65,7 @@ type AppContextValue = AppState & {
   selectDevice: (deviceId: string) => void
   nextLesson: () => void
   setVolume: (value: number) => void
+  setShowRootIndicator: (value: boolean) => void
   clearError: () => void
 }
 
@@ -62,14 +78,15 @@ function getWsUrl(): string {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<WebSocket | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
   const [state, setState] = useState<AppState>(defaultState)
 
   const send = useCallback((obj: object) => {
-    const s = ws
+    const s = wsRef.current
     if (s && s.readyState === WebSocket.OPEN) {
       s.send(JSON.stringify(obj))
     }
-  }, [ws])
+  }, [])
 
   const selectDevice = useCallback((deviceId: string) => {
     send({ type: 'midi_device_select', deviceId })
@@ -80,8 +97,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [send])
 
   const setVolume = useCallback((value: number) => {
-    send({ type: 'set_volume', value })
+    const v = Math.max(0, Math.min(1, Number(value)))
+    setState((prev) => ({ ...prev, volume: v }))
+    send({ type: 'set_volume', value: v })
   }, [send])
+
+  const setShowRootIndicator = useCallback((value: boolean) => {
+    setState((prev) => ({ ...prev, showRootIndicator: value }))
+    try {
+      localStorage.setItem(SHOW_ROOT_INDICATOR_KEY, String(value))
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }))
@@ -90,12 +118,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const url = getWsUrl()
     const socket = new WebSocket(url)
+    wsRef.current = socket
 
     socket.onopen = () => {
       setState((prev) => ({ ...prev, connected: true, error: null }))
     }
 
     socket.onclose = () => {
+      if (wsRef.current === socket) wsRef.current = null
       setWs(null)
       setState((prev) => ({ ...prev, connected: false, error: 'Disconnected. Refresh to reconnect.' }))
     }
@@ -167,6 +197,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setWs(socket)
     return () => {
+      if (wsRef.current === socket) wsRef.current = null
       socket.close()
     }
   }, [])
@@ -178,6 +209,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     selectDevice,
     nextLesson,
     setVolume,
+    setShowRootIndicator,
     clearError,
   }
 

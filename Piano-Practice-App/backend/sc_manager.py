@@ -18,9 +18,9 @@ def _make_osc_client(host: str = SC_HOST, port: int = SC_PORT) -> udp_client.Sim
 
 
 def _osc_status_bytes() -> bytes:
-    """Build OSC /status message (address + type tag, no args)."""
-    # OSC 1.0: address padded to 4 bytes, then type tag string padded to 4
-    return b"/status\x00\x00,\x00\x00\x00"
+    """Build OSC /status message (address + type tag, no args). OSC 1.0: 4-byte aligned."""
+    # Address "/status" + null = 8 bytes; type tag "," + null, pad to 4 = 4 bytes
+    return b"/status\x00" + b",\x00\x00\x00"
 
 
 def _check_sc_running_sync(host: str = SC_HOST, port: int = SC_PORT, timeout: float = 2.0) -> bool:

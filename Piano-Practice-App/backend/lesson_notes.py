@@ -4,12 +4,26 @@ Generate musical note names and MIDI note numbers from lesson definitions (inter
 Lesson definitions store only intervals (semitones from root). This module computes
 note names (A, B, C, D, sharps/flats) and MIDI numbers on the fly for any key and octave,
 using standard interval notation (semitones from root).
+
+Scale-degree display: intervals (semitones) are converted to scale-degree labels
+(1, 2, ♭3, 4, 5, 6, ♭7, 8) using flats for lowered degrees per standard theory:
+- Major chord = 1, 3, 5; minor = 1, ♭3, 5.
+- Natural minor scale = 1, 2, ♭3, 4, 5, 6, ♭7, 8.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Tuple
+
+# Scale-degree labels for display (semitones from root → scale degree with flats).
+# Major scale semitones: 0→1, 2→2, 4→3, 5→4, 7→5, 9→6, 11→7; 12→8.
+# Lowered degrees use flat: 1→♭2, 3→♭3, 6→♭5, 10→♭7. 8 semitones = ♯5 (chord) or 6 (minor scale).
+SEMITONE_TO_SCALE_DEGREE: Tuple[str, ...] = (
+    "1", "♭2", "2", "♭3", "3", "4", "♭5", "5", "♯5", "6", "♭7", "7", "8",
+)
+# Minor scales: 8 semitones = 6th degree (not ♯5).
+MINOR_SCALE_IDS: frozenset[str] = frozenset(("natural_minor", "harmonic_minor"))
 
 # Pitch class 0-11 -> note name (sharp spelling: C, C#, D, ..., B)
 PITCH_CLASS_NAMES_SHARP: Tuple[str, ...] = (
@@ -140,6 +154,30 @@ class LessonNoteGenerator:
         if clamp_midi:
             midi_notes = [max(0, min(127, n)) for n in midi_notes]
         return midi_notes
+
+
+def semitones_to_scale_degrees(semitones: List[int], lesson_id: str = "") -> List[str]:
+    """
+    Convert semitone offsets from root to scale-degree labels (1, 2, ♭3, 4, 5, 6, ♭7, 8).
+    Uses flats for lowered degrees. Octave (12 semitones) → "8"; above octave uses same
+    pattern (e.g. 13 → "1" for 9th).
+    For natural_minor / harmonic_minor, 8 semitones is shown as "6" (6th degree).
+    """
+    use_minor_6 = lesson_id in MINOR_SCALE_IDS
+    result: List[str] = []
+    for s in semitones:
+        if s <= 12:
+            label = SEMITONE_TO_SCALE_DEGREE[s]
+            if use_minor_6 and s == 8:
+                label = "6"
+            result.append(label)
+        else:
+            idx = 12 if s % 12 == 0 else s % 12
+            label = SEMITONE_TO_SCALE_DEGREE[idx]
+            if use_minor_6 and idx == 8:
+                label = "6"
+            result.append(label)
+    return result
 
 
 def lesson_from_json_entry(entry: dict, lesson_type: str) -> LessonDefinition:

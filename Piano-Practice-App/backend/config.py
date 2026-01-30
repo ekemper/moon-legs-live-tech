@@ -13,7 +13,7 @@ DEVICE_CONFIGS_PATH = DATA_DIR / "device_configs.json"
 
 # SuperCollider (SC_HOST for Docker: set to host.docker.internal so container reaches host scsynth)
 SC_HOST = os.environ.get("SC_HOST", "127.0.0.1")
-SC_PORT = int(os.environ.get("SC_PORT", "57120"))
+SC_PORT = int(os.environ.get("SC_PORT", "57110"))  # scsynth default
 SC_BOOT_TIMEOUT_SEC = 5.0
 SC_PROGRAMS_DIR = PROJECT_ROOT / "sc_programs"
 SC_BOOTSTRAP_SCRIPT = SC_PROGRAMS_DIR / "bootstrap.scd"

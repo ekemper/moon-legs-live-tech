@@ -52,6 +52,8 @@ npm run dev
 
 Open http://localhost:5173. Select a MIDI device (or use the virtual keyboard). Use "Next lesson" to get a new chord/scale/arpeggio.
 
+**Rebuild on change:** The frontend is **not** served by the Python app. Locally, Vite (`npm run dev`) serves the app and has **HMR** (hot module replacement), so edits to the frontend rebuild and refresh automatically. In Docker, the frontend is served by **nginx** (a separate container) from a one-time build; there is no live reload unless you use the [Docker dev setup](#docker-dev-with-live-frontend) below.
+
 ## Docker
 
 SuperCollider still runs on the host. Start scsynth first, then run the stack:
@@ -70,6 +72,20 @@ docker compose up --build
 The backend uses `SC_HOST=host.docker.internal` so it can reach scsynth on the host. On Linux, `extra_hosts: host.docker.internal:host-gateway` is set in `docker-compose.yml` so that name resolves. MIDI hardware is not visible inside the backend container; use the in-app virtual keyboard when running with Docker.
 
 Data is persisted via the `./data` bind mount so `device_configs.json` and `lesson_definitions.json` are kept on the host.
+
+### Docker dev with live frontend
+
+To run the full stack in Docker and have the frontend **rebuild on change** (HMR), use the dev override:
+
+```bash
+cd Piano-Practice-App
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+- **Frontend:** http://localhost:5173 (Vite dev server; edits to `frontend/` trigger rebuild and HMR).
+- **Backend:** unchanged; frontend container proxies `/api` and `/ws` to the backend service.
+- Start SuperCollider on the host first.
+- **HMR:** Open the app at **http://localhost:5173** (not 127.0.0.1 or the container IP) so the HMR WebSocket connects correctly. If HMR still doesn’t update, ensure you’re using the dev override (`docker-compose.dev.yml`) and that port 5173 is mapped.
 
 ## Project layout
 

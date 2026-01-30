@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -38,8 +39,8 @@ async def send_ws(obj: dict) -> None:
     if active_ws is not None:
         try:
             await active_ws.send_text(json.dumps(obj))
-        except Exception as e:
-            logger.warning("send_ws: %s", e)
+        except Exception:
+            pass
 
 
 async def midi_consumer() -> None:
@@ -87,16 +88,22 @@ async def lifespan(app: FastAPI):
     lesson_catalog = load_lesson_definitions()
     device_configs = load_device_configs()
     note_generator = LessonNoteGenerator()
-    # SuperCollider (only start sclang when on localhost; in Docker, SC runs on host)
+    # SuperCollider (only start sclang when on localhost; in Docker, SC must be running on host)
     sc_running = await check_sc_running(config.SC_HOST, config.SC_PORT, timeout=2.0)
     if not sc_running:
         if config.SC_HOST in ("127.0.0.1", "localhost") and config.SC_BOOTSTRAP_SCRIPT.exists():
-            logger.info("Starting SuperCollider...")
             proc = start_sc()
             if proc:
                 await asyncio.sleep(config.SC_BOOT_TIMEOUT_SEC)
         else:
-            logger.warning("SuperCollider not reachable at %s:%s (start scsynth on host if using Docker)", config.SC_HOST, config.SC_PORT)
+            # Docker / remote: require SC on host so startup fails fast with obvious error
+            msg = (
+                "SuperCollider is not reachable at %s:%s. "
+                "Start scsynth on the host (e.g. run 'sclang bootstrap.scd' in sc_programs), then restart the backend."
+            ) % (config.SC_HOST, config.SC_PORT)
+            logger.error(msg)
+            print(msg, file=sys.stderr)
+            sys.exit(1)
     sc_client = SCClient(config.SC_HOST, config.SC_PORT)
     sc_client.set_volume(volume)
     midi_handler = MIDIHandler()
@@ -135,7 +142,7 @@ def api_midi_devices():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global active_ws, current_lesson
+    global active_ws, current_lesson, volume
     await websocket.accept()
     active_ws = websocket
     try:
@@ -171,22 +178,32 @@ async def websocket_endpoint(websocket: WebSocket):
                             midi_handler.start_init_workflow(device_id)
                             await send_ws({"type": "init_workflow", "deviceId": device_id, "step": "low"})
             elif msg_type == "next_lesson":
-                global current_lesson
-                current_lesson = pick_random_lesson(lesson_catalog, note_generator)
-                await send_ws({"type": "lesson", "lesson": current_lesson})
+                try:
+                    new_lesson = pick_random_lesson(lesson_catalog, note_generator)
+                    if new_lesson is not None:
+                        current_lesson = new_lesson
+                    await send_ws({"type": "lesson", "lesson": current_lesson})
+                except Exception:
+                    await send_ws({"type": "lesson", "lesson": current_lesson})
             elif msg_type == "set_volume":
-                global volume
-                v = data.get("value", volume)
-                volume = max(0.0, min(1.0, float(v)))
-                if sc_client:
-                    sc_client.set_volume(volume)
-                await send_ws({"type": "volume", "value": volume})
+                try:
+                    v = float(data.get("value", volume))
+                    volume = max(0.0, min(1.0, v))
+                    if sc_client:
+                        sc_client.set_volume(volume)
+                    await send_ws({"type": "volume", "value": volume})
+                except (TypeError, ValueError):
+                    await send_ws({"type": "volume", "value": volume})
             elif msg_type == "virtual_note":
                 # Mouse/touch on virtual keyboard: note (int), on (bool), velocity (optional)
-                note = data.get("note")
+                raw_note = data.get("note")
                 on = data.get("on", True)
                 vel = int(data.get("velocity", 80))
-                if note is not None and isinstance(note, int):
+                try:
+                    note = int(raw_note) if raw_note is not None else None
+                except (TypeError, ValueError):
+                    note = None
+                if note is not None and 0 <= note <= 127:
                     if sc_client:
                         if on:
                             sc_client.note_on(note, vel, 0)

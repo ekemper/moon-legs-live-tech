@@ -7,7 +7,7 @@ from typing import Any
 
 from backend.config import KEYS
 from backend.lesson_loader import load_lesson_definitions
-from backend.lesson_notes import LessonDefinition, LessonNoteGenerator
+from backend.lesson_notes import LessonDefinition, LessonNoteGenerator, semitones_to_scale_degrees
 
 
 def pick_random_lesson(
@@ -34,8 +34,10 @@ def pick_random_lesson(
     return {
         "type": lesson_type,
         "key": key,
+        "octave": octave,
         "name": lesson.name,
         "intervals": lesson.intervals,
+        "intervalLabels": semitones_to_scale_degrees(lesson.intervals, lesson.id),
         "noteNames": note_names,
         "midiNotes": midi_notes,
         "historicalBlurb": lesson.historical_blurb or "",
