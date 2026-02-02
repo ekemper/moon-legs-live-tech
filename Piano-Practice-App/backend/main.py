@@ -21,7 +21,10 @@ from backend.midi_handler import MIDIHandler
 from backend.sc_manager import SCClient, check_sc_running, start_sc
 from backend.validator import is_note_in_lesson
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=config.LOG_LEVEL_VALUE,
+    format="%(levelname)s:%(name)s:%(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # --- State (set in lifespan) ---
@@ -33,9 +36,45 @@ note_generator: LessonNoteGenerator | None = None
 current_lesson: dict | None = None
 active_ws: WebSocket | None = None
 volume: float = config.DEFAULT_VOLUME
+# For MIDI device change detection: last list we sent to the client (or None)
+_last_midi_devices_sent: list[str] | None = None
+MIDI_DEVICE_POLL_INTERVAL = 3.0  # seconds
+
+
+async def _midi_device_poller() -> None:
+    """When MIDI port list changes, push midi_devices to the connected client. Polls every MIDI_DEVICE_POLL_INTERVAL."""
+    global _last_midi_devices_sent
+    logger.info("MIDI device poller started (interval=%.1fs)", MIDI_DEVICE_POLL_INTERVAL)
+    while True:
+        await asyncio.sleep(MIDI_DEVICE_POLL_INTERVAL)
+        if midi_handler is None:
+            logger.warning("MIDI device poll: midi_handler is None, skip")
+            continue
+        current = midi_handler.list_devices()
+        # Log every poll with the device list so we can see what the system reports
+        logger.info("MIDI device poll: %d device(s) %s", len(current), current)
+        if current != _last_midi_devices_sent:
+            logger.info("MIDI device list changed: %s -> %s, pushing to client", _last_midi_devices_sent, current)
+            _last_midi_devices_sent = current
+            if active_ws is not None:
+                await send_ws({"type": "midi_devices", "devices": current})
+        elif active_ws is None:
+            logger.info("MIDI device poll: no WebSocket client connected, not pushing")
+
+
+# Log WebSocket traffic (type + brief summary; avoid flooding for lesson / midi_note)
+def _ws_log_send(obj: dict) -> None:
+    t = obj.get("type", "?")
+    if t == "lesson":
+        logger.info("WS send: type=lesson key=%s", (obj.get("lesson") or {}).get("key"))
+    elif t == "midi_note":
+        logger.debug("WS send: type=midi_note note=%s on=%s", obj.get("note"), obj.get("on"))
+    else:
+        logger.info("WS send: type=%s %s", t, {k: v for k, v in obj.items() if k != "type"})
 
 
 async def send_ws(obj: dict) -> None:
+    _ws_log_send(obj)
     if active_ws is not None:
         try:
             await active_ws.send_text(json.dumps(obj))
@@ -55,6 +94,7 @@ async def midi_consumer() -> None:
             msg = type(msg)("note_off", note=msg.note, velocity=0, time=msg.time, channel=msg.channel)
         if msg.type == "note_on":
             note, vel, ch = msg.note, msg.velocity or 80, msg.channel
+            logger.debug("MIDI note_on note=%s vel=%s ch=%s", note, vel, ch)
             if sc_client:
                 sc_client.note_on(note, vel, ch)
             # Init workflow
@@ -72,6 +112,7 @@ async def midi_consumer() -> None:
                 await send_ws({"type": "midi_note", "note": note, "velocity": vel, "on": True, "isCorrect": correct})
         elif msg.type == "note_off":
             note, ch = msg.note, msg.channel
+            logger.debug("MIDI note_off note=%s ch=%s", note, ch)
             if sc_client:
                 sc_client.note_off(note, ch)
             if not (midi_handler and midi_handler.get_init_state()):
@@ -87,14 +128,24 @@ async def lifespan(app: FastAPI):
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     lesson_catalog = load_lesson_definitions()
     device_configs = load_device_configs()
+    n_chords = len(lesson_catalog.get("chords", []))
+    n_scales = len(lesson_catalog.get("scales", []))
+    n_arpeggios = len(lesson_catalog.get("arpeggios", []))
+    n_devices = len(device_configs)
+    logger.info("Startup: lessons chords=%d scales=%d arpeggios=%d, device_configs=%d", n_chords, n_scales, n_arpeggios, n_devices)
     note_generator = LessonNoteGenerator()
     # SuperCollider (only start sclang when on localhost; in Docker, SC must be running on host)
     sc_running = await check_sc_running(config.SC_HOST, config.SC_PORT, timeout=2.0)
     if not sc_running:
+        logger.warning("SuperCollider not running at %s:%s", config.SC_HOST, config.SC_PORT)
         if config.SC_HOST in ("127.0.0.1", "localhost") and config.SC_BOOTSTRAP_SCRIPT.exists():
+            logger.info("Starting SuperCollider: %s", config.SC_BOOTSTRAP_SCRIPT)
             proc = start_sc()
             if proc:
                 await asyncio.sleep(config.SC_BOOT_TIMEOUT_SEC)
+                logger.info("SuperCollider started (PID %s)", proc.pid)
+            else:
+                logger.error("Failed to start SuperCollider (sclang not found?)")
         else:
             # Docker / remote: require SC on host so startup fails fast with obvious error
             msg = (
@@ -104,25 +155,38 @@ async def lifespan(app: FastAPI):
             logger.error(msg)
             print(msg, file=sys.stderr)
             sys.exit(1)
+    else:
+        logger.info("SuperCollider already running at %s:%s", config.SC_HOST, config.SC_PORT)
     sc_client = SCClient(config.SC_HOST, config.SC_PORT)
     sc_client.set_volume(volume)
     midi_handler = MIDIHandler()
     # Initial lesson
     current_lesson = pick_random_lesson(lesson_catalog, note_generator)
-    # Start MIDI consumer
+    if current_lesson:
+        logger.info("Initial lesson: %s %s (%s)", current_lesson.get("key"), current_lesson.get("name"), current_lesson.get("type"))
+    # Start MIDI consumer and MIDI device poller (push device list changes to client)
     consumer_task = asyncio.create_task(midi_consumer())
+    poller_task = asyncio.create_task(_midi_device_poller())
+    logger.info("Backend ready: MIDI consumer and device poller started")
     try:
         yield
     finally:
+        logger.info("Shutting down: stopping MIDI consumer and poller")
         consumer_task.cancel()
+        poller_task.cancel()
         try:
             await consumer_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await poller_task
         except asyncio.CancelledError:
             pass
         if midi_handler:
             midi_handler.close()
         sc_client = None
         midi_handler = None
+        logger.info("Shutdown complete")
 
 
 app = FastAPI(title="Piano Practice App", lifespan=lifespan)
@@ -142,13 +206,16 @@ def api_midi_devices():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global active_ws, current_lesson, volume
+    global active_ws, current_lesson, volume, _last_midi_devices_sent
     await websocket.accept()
     active_ws = websocket
     try:
         # Send initial state
+        devices = midi_handler.list_devices() if midi_handler else []
+        logger.info("WebSocket connected: sending initial state (lesson, %d MIDI device(s))", len(devices))
         await send_ws({"type": "lesson", "lesson": current_lesson})
-        await send_ws({"type": "midi_devices", "devices": midi_handler.list_devices() if midi_handler else []})
+        await send_ws({"type": "midi_devices", "devices": devices})
+        _last_midi_devices_sent = devices  # so poller doesn't immediately re-send
         if midi_handler:
             await send_ws({"type": "device_configs", "configs": midi_handler.get_all_device_configs()})
         await send_ws({"type": "volume", "value": volume})
@@ -157,26 +224,41 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
+                logger.warning("WS recv: invalid JSON (len=%d)", len(raw))
                 continue
             msg_type = data.get("type")
+            if msg_type in ("midi_note", "virtual_note"):
+                logger.debug("WS recv: type=%s %s", msg_type, {k: v for k, v in data.items() if k != "type"})
+            else:
+                logger.info("WS recv: type=%s %s", msg_type, {k: v for k, v in data.items() if k != "type"})
             if msg_type == "midi_device_select":
                 device_id = data.get("deviceId") or data.get("deviceName")
+                device_index = data.get("deviceIndex")
+                logger.info("midi_device_select: deviceId=%r deviceName=%r deviceIndex=%r", data.get("deviceId"), data.get("deviceName"), device_index)
                 if not device_id and midi_handler:
                     devices = midi_handler.list_devices()
-                    idx = data.get("deviceIndex", 0)
+                    idx = device_index if device_index is not None else 0
                     if 0 <= idx < len(devices):
                         device_id = devices[idx]
+                        logger.info("midi_device_select: resolved by index to %r", device_id)
+                    else:
+                        logger.warning("midi_device_select: no deviceId and index %s out of range (devices=%s)", idx, devices)
                 if device_id and midi_handler:
                     err = midi_handler.open(device_id)
                     if err:
+                        logger.warning("midi_device_select: open failed for %r: %s", device_id, err)
                         await send_ws({"type": "error", "message": err})
                     else:
                         cfg = midi_handler.get_device_config(device_id)
                         if cfg:
+                            logger.info("midi_device_select: connected %r with saved config %s", device_id, cfg)
                             await send_ws({"type": "midi_device", "deviceId": device_id, "config": cfg})
                         else:
+                            logger.info("midi_device_select: connected %r, starting init_workflow (no saved config)", device_id)
                             midi_handler.start_init_workflow(device_id)
                             await send_ws({"type": "init_workflow", "deviceId": device_id, "step": "low"})
+                elif not device_id:
+                    logger.warning("midi_device_select: no device_id resolved, ignoring")
             elif msg_type == "next_lesson":
                 try:
                     new_lesson = pick_random_lesson(lesson_catalog, note_generator)

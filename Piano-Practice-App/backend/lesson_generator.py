@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import random
 from typing import Any
 
 from backend.config import KEYS
 from backend.lesson_loader import load_lesson_definitions
 from backend.lesson_notes import LessonDefinition, LessonNoteGenerator, semitones_to_scale_degrees
+
+logger = logging.getLogger(__name__)
 
 
 def pick_random_lesson(
@@ -30,6 +33,7 @@ def pick_random_lesson(
     lesson_type, defs = random.choice(types_with_defs)
     lesson = random.choice(defs)
     key = random.choice(keys)
+    logger.info("pick_random_lesson: type=%s name=%s key=%s octave=%s", lesson_type, lesson.name, key, octave)
     note_names, midi_notes = note_generator.notes_and_midi(lesson, key, octave, include_octave_in_names=False)
     return {
         "type": lesson_type,

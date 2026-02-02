@@ -15,21 +15,11 @@ React + FastAPI app for practicing chords, scales, and arpeggios with a MIDI key
 
 ```bash
 cd Piano-Practice-App
-python -m venv .venv
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r backend/requirements.txt
-# Run from repo root so backend can import as backend.*
-cd ..
-python -m uvicorn Piano-Practice-App.backend.main:app --reload --host 0.0.0.0 --port 8765
-```
-
-Or from `Piano-Practice-App`:
-
-```bash
-cd Piano-Practice-App
 pip install -r backend/requirements.txt
 PYTHONPATH=. python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8765
 ```
+
+**Debugging:** Set `LOG_LEVEL=DEBUG` for verbose logs (MIDI note on/off, OSC to SuperCollider, WebSocket traffic). Example: `LOG_LEVEL=DEBUG PYTHONPATH=. python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8765`
 
 ### 2. SuperCollider (optional; for audio)
 
@@ -98,3 +88,21 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ## Device setup
 
 On first use with a new MIDI keyboard, the app will prompt you to play the **lowest** then **highest** note so it can store the key count and range. After that, the device is recognized automatically.
+
+## Audio output (headphones / Bluetooth)
+
+The Rhodes sound is played by **SuperCollider (scsynth)**. It uses your **system default audio output** at the time the server boots. If you don’t hear the keyboard (e.g. you’re using Bose Bluetooth headphones):
+
+1. **Set your headphones as the system output**  
+   On macOS: **System Settings → Sound → Output** (or click the sound icon in the menu bar) and choose your Bose device.
+
+2. **Start or restart SuperCollider after switching**  
+   - If you haven’t started the app yet: set Bose as output, then start `sclang bootstrap.scd` (or start the backend so it auto-starts SuperCollider).  
+   - If the app is already running: quit `sclang` (Ctrl+C in the terminal where it’s running), set Bose as output, then run `sclang bootstrap.scd` again from `sc_programs/`. If the backend started SuperCollider for you, restart the backend after switching output so it starts scsynth again with the new default.
+
+3. **Optional: force a specific device**  
+   Edit `sc_programs/bootstrap.scd` and, **before** `Server.default.waitForBoot`, add:
+   ```supercollider
+   Server.default.options.outDevice_("Your Bose Device Name");
+   ```
+   To see exact device names, run `sclang` and evaluate: `ServerOptions.outDevices;` then use one of the listed names.

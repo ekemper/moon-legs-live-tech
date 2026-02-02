@@ -1,1 +1,7 @@
-{}
+{
+  "Alesis Recital  Alesis Recital": {
+    "lowNote": 21,
+    "highNote": 108,
+    "keyCount": 88
+  }
+}

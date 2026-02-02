@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from backend.config import DEVICE_CONFIGS_PATH, LESSON_DEFINITIONS_PATH
 from backend.lesson_notes import LessonDefinition, lesson_from_json_entry
+
+logger = logging.getLogger(__name__)
 
 
 def load_lesson_definitions(path: Path | None = None) -> dict[str, list[LessonDefinition]]:
@@ -15,11 +18,13 @@ def load_lesson_definitions(path: Path | None = None) -> dict[str, list[LessonDe
     path = path or LESSON_DEFINITIONS_PATH
     empty = {"chords": [], "scales": [], "arpeggios": []}
     if not path.exists():
+        logger.warning("load_lesson_definitions: path does not exist %s", path)
         return empty
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except (OSError, PermissionError, json.JSONDecodeError):
+    except (OSError, PermissionError, json.JSONDecodeError) as e:
+        logger.warning("load_lesson_definitions: failed to load %s: %s", path, e)
         return empty
     result: dict[str, list[LessonDefinition]] = {
         "chords": [],
@@ -29,6 +34,8 @@ def load_lesson_definitions(path: Path | None = None) -> dict[str, list[LessonDe
     for key in result:
         for entry in data.get(key, []):
             result[key].append(lesson_from_json_entry(entry, key[:-1]))  # "chords" -> "chord"
+    logger.info("load_lesson_definitions: loaded from %s chords=%d scales=%d arpeggios=%d",
+                path, len(result["chords"]), len(result["scales"]), len(result["arpeggios"]))
     return result
 
 
@@ -36,11 +43,15 @@ def load_device_configs(path: Path | None = None) -> dict[str, dict[str, Any]]:
     """Load device_configs.json; return { device_id: { lowNote, highNote, keyCount }, ... }."""
     path = path or DEVICE_CONFIGS_PATH
     if not path.exists():
+        logger.debug("load_device_configs: path does not exist %s", path)
         return {}
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, PermissionError, json.JSONDecodeError):
+            configs = json.load(f)
+        logger.info("load_device_configs: loaded %d device(s) from %s", len(configs), path)
+        return configs
+    except (OSError, PermissionError, json.JSONDecodeError) as e:
+        logger.warning("load_device_configs: failed to load %s: %s", path, e)
         return {}
 
 

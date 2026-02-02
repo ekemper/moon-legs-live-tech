@@ -80,6 +80,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<WebSocket | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const [state, setState] = useState<AppState>(defaultState)
+  const setStateRef = useRef(setState)
+  setStateRef.current = setState
 
   const send = useCallback((obj: object) => {
     const s = wsRef.current
@@ -139,27 +141,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const data = JSON.parse(event.data)
         const t = data.type
         if (t === 'lesson') {
-          setState((prev) => ({ ...prev, lesson: data.lesson }))
+          setStateRef.current((prev) => ({ ...prev, lesson: data.lesson ?? null }))
         } else if (t === 'midi_devices') {
-          setState((prev) => ({ ...prev, devices: data.devices || [] }))
+          setStateRef.current((prev) => ({ ...prev, devices: data.devices || [] }))
         } else if (t === 'device_configs') {
-          setState((prev) => ({ ...prev, deviceConfigs: data.configs || {} }))
+          setStateRef.current((prev) => ({ ...prev, deviceConfigs: data.configs || {} }))
         } else if (t === 'midi_device') {
-          setState((prev) => ({
+          setStateRef.current((prev) => ({
             ...prev,
             selectedDeviceId: data.deviceId,
             selectedDeviceConfig: data.config || null,
             initWorkflow: null,
           }))
         } else if (t === 'init_workflow') {
-          setState((prev) => ({ ...prev, initWorkflow: { deviceId: data.deviceId, step: 'low' } }))
+          setStateRef.current((prev) => ({ ...prev, initWorkflow: { deviceId: data.deviceId, step: 'low' } }))
         } else if (t === 'init_step') {
-          setState((prev) => ({
+          setStateRef.current((prev) => ({
             ...prev,
             initWorkflow: prev.initWorkflow ? { ...prev.initWorkflow, step: data.step || 'high' } : null,
           }))
         } else if (t === 'init_complete') {
-          setState((prev) => {
+          setStateRef.current((prev) => {
             const deviceId = prev.initWorkflow?.deviceId ?? prev.selectedDeviceId ?? ''
             return {
               ...prev,
@@ -173,7 +175,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const note = data.note as number
           const on = data.on as boolean
           const isCorrect = data.isCorrect as boolean
-          setState((prev) => {
+          setStateRef.current((prev) => {
             const nextActive = new Map(prev.activeNotes)
             const nextCorrect = new Map(prev.noteCorrect)
             if (on) {
@@ -186,9 +188,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return { ...prev, activeNotes: nextActive, noteCorrect: nextCorrect }
           })
         } else if (t === 'volume') {
-          setState((prev) => ({ ...prev, volume: data.value ?? prev.volume }))
+          setStateRef.current((prev) => ({ ...prev, volume: data.value ?? prev.volume }))
         } else if (t === 'error') {
-          setState((prev) => ({ ...prev, error: data.message || 'Error' }))
+          setStateRef.current((prev) => ({ ...prev, error: data.message || 'Error' }))
         }
       } catch {
         // ignore parse errors
@@ -198,7 +200,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setWs(socket)
     return () => {
       if (wsRef.current === socket) wsRef.current = null
-      socket.close()
+      // Avoid close() while CONNECTING: React Strict Mode unmounts immediately and would
+      // trigger "WebSocket is closed before the connection is established". If already open, close.
+      // If still connecting, close once it opens so we don't leave a dangling connection.
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close()
+      } else if (socket.readyState === WebSocket.CONNECTING) {
+        socket.onopen = () => socket.close()
+      }
     }
   }, [])
 

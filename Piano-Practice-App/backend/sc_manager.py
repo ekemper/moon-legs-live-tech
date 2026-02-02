@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import socket
 import subprocess
 from pathlib import Path
@@ -11,6 +12,8 @@ from collections import defaultdict
 from pythonosc import udp_client
 
 from backend.config import SC_BOOT_TIMEOUT_SEC, SC_BOOTSTRAP_SCRIPT, SC_HOST, SC_PORT
+
+logger = logging.getLogger(__name__)
 
 
 def _make_osc_client(host: str = SC_HOST, port: int = SC_PORT) -> udp_client.SimpleUDPClient:
@@ -41,23 +44,29 @@ def _check_sc_running_sync(host: str = SC_HOST, port: int = SC_PORT, timeout: fl
 async def check_sc_running(host: str = SC_HOST, port: int = SC_PORT, timeout: float = 2.0) -> bool:
     """Return True if scsynth responds to /status within timeout."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _check_sc_running_sync, host, port, timeout)
+    result = await loop.run_in_executor(None, _check_sc_running_sync, host, port, timeout)
+    logger.info("check_sc_running %s:%s -> %s", host, port, result)
+    return result
 
 
 def start_sc(bootstrap_script: str | Path | None = None) -> subprocess.Popen | None:
     """Start SuperCollider by running sclang bootstrap.scd. Returns Popen or None on failure."""
     script = Path(bootstrap_script or SC_BOOTSTRAP_SCRIPT)
     if not script.exists():
+        logger.warning("start_sc: script does not exist %s", script)
         return None
     try:
-        return subprocess.Popen(
+        proc = subprocess.Popen(
             ["sclang", str(script)],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=str(script.parent),
         )
-    except FileNotFoundError:
+        logger.info("start_sc: started sclang %s (PID %s)", script, proc.pid)
+        return proc
+    except FileNotFoundError as e:
+        logger.warning("start_sc: sclang not found: %s", e)
         return None
 
 
@@ -86,6 +95,7 @@ class SCClient:
         amp = 0.3 * self._volume * (0.3 + 0.7 * vel)
         node_id = self._next_node_id()
         self._active_nodes[(channel, note)].append(node_id)
+        logger.debug("SC note_on note=%s vel=%s ch=%s node_id=%s", note, velocity, channel, node_id)
         # /s_new defName nodeID addAction targetID [paramName paramValue ...]
         self._client.send_message(
             "/s_new",
@@ -97,6 +107,7 @@ class SCClient:
         if not self._active_nodes[key]:
             return
         node_id = self._active_nodes[key].pop()
+        logger.debug("SC note_off note=%s ch=%s node_id=%s", note, channel, node_id)
         self._client.send_message("/n_set", [node_id, "gate", 0])
         if not self._active_nodes[key]:
             del self._active_nodes[key]

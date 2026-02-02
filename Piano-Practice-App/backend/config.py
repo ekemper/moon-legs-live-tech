@@ -1,10 +1,15 @@
 """Configuration: ports, paths, defaults."""
 
+import logging
 import os
 from pathlib import Path
 
 # Project root (parent of backend/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Logging: set LOG_LEVEL=DEBUG for verbose logs (e.g. MIDI notes, OSC, WS traffic)
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL_VALUE = getattr(logging, LOG_LEVEL, logging.INFO)
 
 # Data paths
 DATA_DIR = PROJECT_ROOT / "data"
