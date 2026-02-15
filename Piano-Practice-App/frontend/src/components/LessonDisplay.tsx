@@ -14,7 +14,7 @@ export function LessonDisplay() {
         <strong>{keyLabel} {name}</strong> <span style={{ color: '#888', textTransform: 'capitalize' }}>({type})</span>
       </div>
       <div style={{ marginBottom: 8 }}>
-        Notes: {Array.isArray(noteNames) ? noteNames.join(', ') : '—'}
+        Notes: {Array.isArray(noteNames) ? noteNames.join(', ') : '—'} <span style={{ color: '#888' }}>(any octave)</span>
       </div>
       <div style={{ marginBottom: 8, color: '#aaa' }}>
         Scale degrees: {intervalDisplay}

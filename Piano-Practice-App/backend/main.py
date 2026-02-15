@@ -51,24 +51,25 @@ async def _midi_device_poller() -> None:
             logger.warning("MIDI device poll: midi_handler is None, skip")
             continue
         current = midi_handler.list_devices()
-        # Log every poll with the device list so we can see what the system reports
-        logger.info("MIDI device poll: %d device(s) %s", len(current), current)
+        logger.debug("MIDI device poll: %d device(s) %s", len(current), current)
         if current != _last_midi_devices_sent:
             logger.info("MIDI device list changed: %s -> %s, pushing to client", _last_midi_devices_sent, current)
             _last_midi_devices_sent = current
             if active_ws is not None:
                 await send_ws({"type": "midi_devices", "devices": current})
         elif active_ws is None:
-            logger.info("MIDI device poll: no WebSocket client connected, not pushing")
+            logger.debug("MIDI device poll: no WebSocket client connected, not pushing")
 
 
-# Log WebSocket traffic (type + brief summary; avoid flooding for lesson / midi_note)
+# Log WebSocket traffic (type + brief summary); routine at DEBUG, important at INFO, errors stay WARNING+
 def _ws_log_send(obj: dict) -> None:
     t = obj.get("type", "?")
     if t == "lesson":
         logger.info("WS send: type=lesson key=%s", (obj.get("lesson") or {}).get("key"))
     elif t == "midi_note":
         logger.debug("WS send: type=midi_note note=%s on=%s", obj.get("note"), obj.get("on"))
+    elif t in ("midi_devices", "device_configs", "volume"):
+        logger.debug("WS send: type=%s %s", t, {k: v for k, v in obj.items() if k != "type"})
     else:
         logger.info("WS send: type=%s %s", t, {k: v for k, v in obj.items() if k != "type"})
 

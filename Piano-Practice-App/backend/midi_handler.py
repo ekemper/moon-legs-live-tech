@@ -85,7 +85,7 @@ def get_input_names() -> list[str]:
     global _midi_list_failure_logged, _no_ports_hint_logged
     try:
         names = mido.get_input_names()
-        logger.info("MIDI list_devices: found %d port(s) %s", len(names), names)
+        logger.debug("MIDI list_devices: found %d port(s) %s", len(names), names)
         if not names and not _is_running_in_docker() and not _no_ports_hint_logged:
             _no_ports_hint_logged = True
             logger.info(

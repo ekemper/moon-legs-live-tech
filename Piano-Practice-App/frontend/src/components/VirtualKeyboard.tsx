@@ -29,7 +29,7 @@ const DEFAULT_88_HIGH = 108
 export function VirtualKeyboard() {
   const { send, selectedDeviceConfig, activeNotes, lesson, showRootIndicator } = useApp()
   const [hoverNote, setHoverNote] = useState<number | null>(null)
-  const rootMidi = lesson?.midiNotes?.[0] ?? null
+  const rootMidi = lesson?.rootMidi ?? lesson?.midiNotes?.[0] ?? null
 
   const lowNote = selectedDeviceConfig?.lowNote ?? DEFAULT_88_LOW
   const highNote = selectedDeviceConfig?.highNote ?? DEFAULT_88_HIGH

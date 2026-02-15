@@ -9,6 +9,7 @@ export interface Lesson {
   intervalLabels?: string[]  // scale degrees: 1, ♭3, 5, etc. (from backend)
   noteNames: string[]
   midiNotes: number[]
+  rootMidi?: number  // root note in lesson octave; used for on-keyboard root indicator
   historicalBlurb: string
 }
 
@@ -82,6 +83,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState)
   const setStateRef = useRef(setState)
   setStateRef.current = setState
+  const autoSelectAttemptedRef = useRef(false)
 
   const send = useCallback((obj: object) => {
     const s = wsRef.current
@@ -116,6 +118,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }))
   }, [])
+
+  // Auto-select the single MIDI device on load when there is exactly one in the list
+  const { devices, selectedDeviceId } = state
+  useEffect(() => {
+    if (devices.length === 1 && !selectedDeviceId) {
+      if (!autoSelectAttemptedRef.current) {
+        autoSelectAttemptedRef.current = true
+        selectDevice(devices[0])
+      }
+    } else if (devices.length !== 1) {
+      autoSelectAttemptedRef.current = false
+    }
+  }, [devices, selectedDeviceId, selectDevice])
 
   useEffect(() => {
     const url = getWsUrl()
